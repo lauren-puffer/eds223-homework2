@@ -1,0 +1,38 @@
+---
+title: "Exploring patterns of environmental injustice"
+author: "Lauren Puffer"
+format: html
+editor: visual
+embed-resources: true
+page-loading: false
+code-fold: show
+execute: 
+  warning: false
+  message: false
+toc: TRUE
+theme: journal
+---
+
+## Introduction
+
+## Data source
+
+\
+EPA, 2024, "Environmental Justice Mapping and Screening Tool (EJScreen)", <https://doi.org/10.7910/DVN/RLR5AX>, Harvard Dataverse, V4, UNF:6:Ew64oHBMGoTrNkLoYBJcUw== \[fileUNF\]
+
+link to EJ Screen: <https://pedp-ejscreen.azurewebsites.net/>
+
+## Load packages
+
+```{r}
+library(tmap)
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
