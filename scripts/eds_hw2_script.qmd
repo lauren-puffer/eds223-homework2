@@ -43,7 +43,7 @@ library(janitor) # to clean column names
 
 ## Bring in data
 
-### Block group levels
+### Los Angeles County block group levels
 
 EJ SCREEEN uses block groups to asses indicators of environmental justice. We will first need to pull the geometries of the block from EJ SCREEN data. Each block has a unique OBJECTID, which will provide the level of resolution required for this analysis.
 
@@ -56,11 +56,19 @@ ej_screen_la <- ejscreen |>
   filter(CNTY_NAME == "Los Angeles County")
 
 # check to see what the census blocks look like
-tm_shape(ej_screen_la)+
-  tm_polygons()
+la_county_blocks_map <- tm_shape(ej_screen_la)+
+  tm_polygons()+
+  tm_title(text = "Map of LA County Census Block")+
+      tm_compass(type = "arrow",
+               position = c("left", "bottom"),
+               size = 1.5) +
+    tm_scalebar(position = c("right", "bottom"), 
+                width = 6)
+
+la_county_blocks_map
 ```
 
-### Shape of Los Angeles 
+### Shape of Los Angeles
 
 ```{r}
 # get geometry of CA counties 
@@ -105,18 +113,12 @@ redlining_reproj <- st_transform(redlining, crs = st_crs(ej_screen_la))
 # check to see that it matches 
 st_crs(redlining_reproj) == st_crs(ej_screen_la) 
 
-
 # create map of redlining in LA county
 tm_shape(ej_screen_la)+
   tm_polygons()+
 tm_shape(redlining_reproj)+
   tm_polygons(fill = "red")
 
-# get bounding box of HOLC data as a polygon
-holc_bbox <- st_as_sfc(st_bbox(redlining_reproj))
-
-# clip EJSCREEN data to HOLC extent
-ej_screen_clip <- st_crop(ej_screen_la, holc_bbox)
 
 # Plot to verify
 tm_shape(ej_screen_clip) +
