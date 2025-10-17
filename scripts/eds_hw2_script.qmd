@@ -68,34 +68,7 @@ la_county_blocks_map <- tm_shape(ej_screen_la)+
 la_county_blocks_map
 ```
 
-### Shape of Los Angeles
-
-```{r}
-# get geometry of CA counties 
-ca <- places(state = "CA") |>
-  clean_names()
-
-# retrieve Los Angeles county fro ca_counties
-la <- ca |>
-  filter(namelsad == "Los Angeles city")
-
-# check crs of LA county
-st_crs(la) # NAD 1983
-
-# change crs to match EJ SCREEN data
-la_reproj <- st_transform(la, crs = st_crs(ej_screen_la))
-
-#check that they match
-st_crs(la_reproj) == st_crs(ej_screen_la)
-
-# plot LA county
-tm_shape(la_reproj)+
-  tm_polygons()+
-  tm_shape(redlining_reproj)+
-  tm_fill(fill = "grade")
-```
-
-### Redlining in Los Angeles
+# Redlining in Los Angeles
 
 ```{r}
 # redlining data from HOLC 
@@ -113,23 +86,103 @@ redlining_reproj <- st_transform(redlining, crs = st_crs(ej_screen_la))
 # check to see that it matches 
 st_crs(redlining_reproj) == st_crs(ej_screen_la) 
 
-# create map of redlining in LA county
-tm_shape(ej_screen_la)+
-  tm_polygons()+
-tm_shape(redlining_reproj)+
-  tm_polygons(fill = "red")
+# get the bounding box of HOLC data
+holc_extent <- st_bbox(redlining_reproj)
 
-
-# Plot to verify
-tm_shape(ej_screen_clip) +
+# 
+tm_shape(ej_screen_la, bbox = holc_extent) +
   tm_polygons() +
-tm_shape(redlining_reproj) +
-  tm_fill(fill= "grade")
-
-  
+  tm_borders(col = "black")+
+  tm_shape(redlining_reproj)+
+  tm_fill(fill = "grade")+
+  tm_title(text = "Historically Redlined Neighborhoods in LA")+
+  tm_scalebar(position = c("right", "bottom"),
+              width = 7)+
+   tm_compass(type = "arrow",
+               position = c("right", "bottom"))
 ```
 
-### Birds in Los Angeles County
+You may notice that the HOLC data is only a very small portion of LA County. This is because the HOLC data is from decades ago, when LA was much smaller. We need to account for this in our analysis by only including block groups from the HOLC data.
+
+## Join redlining and EJ Screen Data
+
+Because we want to have all of the census blocks for our HOLC data, we will join the two data sets so that we can use the census block geometries in the EJ Screen data and perform analyses.
+
+```{r}
+# join HOLC and EJ Screen data
+holc_ej <- st_join(ej_screen_la, redlining_reproj, join = st_intersects, left = FALSE) # 6388 rows
+```
+
+Now that we have joined the datasets, we can gather the information we need to get the percentage of each grade across the census block in LA.
+
+```{r}
+# group by grade and get percentage of each grade in LA county
+holc_by_block <- holc_ej |>
+  st_drop_geometry() |>         
+  mutate(grade = replace_na(grade, "None")) |>   # handle NA here
+  group_by(grade) |>            
+  summarise(num_blocks = n())|>
+  mutate(percentage = num_blocks / sum(num_blocks) * 100)
+```
+
+# Percentage of blocks in each grade
+
+To better illustrate what this looks like, we will construct a table that will show the number of blocks and percentage of blocks in each grade.
+
+```{r}
+# package that allows you to make interactive data tables
+library(DT)
+
+# create data table with information from 'holc_by_block' data frame
+datatable(holc_by_block,
+          options = list(pageLength = 5, autoWidth = TRUE),
+          rownames = FALSE,
+          class = "stripe hover",
+          colnames = c("HOLC Grade", "Number of Block Groups", "Percent of Total"))
+```
+
+# Redlining and EJ
+
+In order to illustrate the relationship between different EJ indicators and how they are impacted by redlining, we will create some meaningful visuals.
+
+## Bar graph of percent low income by grade
+
+```{r}
+# get percent low income by grade
+percent_lowinc_by_grade <- holc_ej |>
+  st_drop_geometry() |>
+  mutate(grade = if_else(is.na(grade), "None", grade)) |>
+  group_by(grade) |>
+  summarise(avg_lowincpct = mean(LOWINCPCT, na.rm = TRUE) * 100)
+
+# use colors from HOLC dataset
+# Define the custom colors for each grade
+grade_colors <- c(
+  "A" = "#76a865",     
+  "B" = "#7cb5bd",       
+  "C" = "#ffff00",    
+  "D" = "#d9838d",      
+  "None" = "#d3d3d3"     
+)
+
+# plot bar graph of percent low income by grade
+holc_percent_low_inc <- ggplot(percent_lowinc_by_grade, aes(x = grade, y = avg_lowincpct, fill = grade)) +
+  geom_col() +
+  labs(
+    title = "Average % Low-Income by HOLC Grade in LA",
+    x = "HOLC Grade",
+    y = "Average % Low-Income"
+  ) +
+  scale_fill_manual(values = grade_colors) +   # use custom colors here
+  theme_minimal()
+
+# call the plot
+holc_percent_low_inc
+```
+
+As we can see, grade A, which the 'best' neighborhoods belong to, has the lowest average percent low income at \~ 15%, while grade D, which the 'hazardous' neighborhoods belong to has the highest average percent low income.
+
+# Birds in Los Angeles County
 
 ```{r}
 # read in bird data
