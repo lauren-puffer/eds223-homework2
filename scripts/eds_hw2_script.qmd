@@ -51,38 +51,43 @@ EJ SCREEEN uses block groups to asses indicators of environmental justice. We wi
 # read in geodatabase of EJScreen data at the Census Block Group level
 ejscreen <- st_read(here("data", "ejscreen","EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb"))
 
+# filter for LA County
+ej_screen_la <- ejscreen |>
+  filter(CNTY_NAME == "Los Angeles County")
 
+# check to see what the census blocks look like
+tm_shape(ej_screen_la)+
+  tm_polygons()
 ```
 
-### Birds in Los Angeles
+### Shape of Los Angeles 
 
 ```{r}
-# read in bird data
-birds <- st_read(here("data", "gbif-birds-LA",
-                      "gbif-birds-LA.shp"))
 # get geometry of CA counties 
-ca_counties <- counties(state = "CA", cb = TRUE, year = 2024) |>
+ca <- places(state = "CA") |>
   clean_names()
 
 # retrieve Los Angeles county fro ca_counties
-la_county <- ca_counties |>
-  filter(name == "Los Angeles")
+la <- ca |>
+  filter(namelsad == "Los Angeles city")
 
 # check crs of LA county
-st_crs(la_county) # NAD 1983
+st_crs(la) # NAD 1983
+
+# change crs to match EJ SCREEN data
+la_reproj <- st_transform(la, crs = st_crs(ej_screen_la))
+
+#check that they match
+st_crs(la_reproj) == st_crs(ej_screen_la)
 
 # plot LA county
-tm_shape(la_county)+
-  tm_polygons()
-
-
-# get geometry for census tracts in LA county
-la_tracts <- tracts(state = "CA", 
-                    county = "Los Angeles",
-                    progress_bar = FALSE)
+tm_shape(la_reproj)+
+  tm_polygons()+
+  tm_shape(redlining_reproj)+
+  tm_fill(fill = "grade")
 ```
 
-### Redlining in Los Angeles County
+### Redlining in Los Angeles
 
 ```{r}
 # redlining data from HOLC 
@@ -91,26 +96,46 @@ redlining <- st_read(here("data", "mapping-inequality","mapping-inequality-los-a
 # check CRS
 st_crs(redlining)
 
-# reproject to match LA census tracts
-# choose CRS to reproject to
+# check crs of ej data and redlining data
+st_crs(ej_screen_la) == st_crs(redlining) #false
 
-# reproject to LA census tracts
-redlining_reproj <- st_transform(redlining, crs = st_crs(la_tracts))
+# reproject to match LA block groups from EJ Screen data
+redlining_reproj <- st_transform(redlining, crs = st_crs(ej_screen_la))
 
 # check to see that it matches 
-st_crs(redlining_reproj) == st_crs(la_tracts) # matches
-st_crs(redlining_reproj) == st_crs(la_county) # matches
+st_crs(redlining_reproj) == st_crs(ej_screen_la) 
 
 
 # create map of redlining in LA county
-tm_shape(la_county)+
+tm_shape(ej_screen_la)+
   tm_polygons()+
 tm_shape(redlining_reproj)+
   tm_polygons(fill = "red")
+
+# get bounding box of HOLC data as a polygon
+holc_bbox <- st_as_sfc(st_bbox(redlining_reproj))
+
+# clip EJSCREEN data to HOLC extent
+ej_screen_clip <- st_crop(ej_screen_la, holc_bbox)
+
+# Plot to verify
+tm_shape(ej_screen_clip) +
+  tm_polygons() +
+tm_shape(redlining_reproj) +
+  tm_fill(fill= "grade")
+
   
 ```
 
-## Environmental justice & redlining
+### Birds in Los Angeles County
+
+```{r}
+# read in bird data
+birds <- st_read(here("data", "gbif-birds-LA",
+                      "gbif-birds-LA.shp"))
+```
+
+## Historical Redlining Map
 
 ```{r}
 
