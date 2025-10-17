@@ -15,24 +15,103 @@ theme: journal
 
 ## Introduction
 
-## Data source
+## Data sources
 
-\
+**EJ SCREEN**\
 EPA, 2024, "Environmental Justice Mapping and Screening Tool (EJScreen)", <https://doi.org/10.7910/DVN/RLR5AX>, Harvard Dataverse, V4, UNF:6:Ew64oHBMGoTrNkLoYBJcUw== \[fileUNF\]
 
 link to EJ Screen: <https://pedp-ejscreen.azurewebsites.net/>
 
+**HOLC Red lining data**
+
+<https://dsl.richmond.edu/panorama/redlining/data>
+
+**Global Biodiversity Information Facility**
+
+eBird: <https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e>
+
 ## Load packages
 
 ```{r}
+library(tidyverse)
+library(sf)
 library(tmap)
+library(here)
+library(tigris) # for shape file of counties
+library(janitor) # to clean column names
 ```
 
-You can add options to executable code like this
+## Bring in data
+
+### Block group levels
+
+EJ SCREEEN uses block groups to asses indicators of environmental justice. We will first need to pull the geometries of the block from EJ SCREEN data. Each block has a unique OBJECTID, which will provide the level of resolution required for this analysis.
 
 ```{r}
-#| echo: false
-2 * 2
+# read in geodatabase of EJScreen data at the Census Block Group level
+ejscreen <- st_read(here("data", "ejscreen","EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb"))
+
+
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+### Birds in Los Angeles
+
+```{r}
+# read in bird data
+birds <- st_read(here("data", "gbif-birds-LA",
+                      "gbif-birds-LA.shp"))
+# get geometry of CA counties 
+ca_counties <- counties(state = "CA", cb = TRUE, year = 2024) |>
+  clean_names()
+
+# retrieve Los Angeles county fro ca_counties
+la_county <- ca_counties |>
+  filter(name == "Los Angeles")
+
+# check crs of LA county
+st_crs(la_county) # NAD 1983
+
+# plot LA county
+tm_shape(la_county)+
+  tm_polygons()
+
+
+# get geometry for census tracts in LA county
+la_tracts <- tracts(state = "CA", 
+                    county = "Los Angeles",
+                    progress_bar = FALSE)
+```
+
+### Redlining in Los Angeles County
+
+```{r}
+# redlining data from HOLC 
+redlining <- st_read(here("data", "mapping-inequality","mapping-inequality-los-angeles.json"))
+
+# check CRS
+st_crs(redlining)
+
+# reproject to match LA census tracts
+# choose CRS to reproject to
+
+# reproject to LA census tracts
+redlining_reproj <- st_transform(redlining, crs = st_crs(la_tracts))
+
+# check to see that it matches 
+st_crs(redlining_reproj) == st_crs(la_tracts) # matches
+st_crs(redlining_reproj) == st_crs(la_county) # matches
+
+
+# create map of redlining in LA county
+tm_shape(la_county)+
+  tm_polygons()+
+tm_shape(redlining_reproj)+
+  tm_polygons(fill = "red")
+  
+```
+
+## Environmental justice & redlining
+
+```{r}
+
+```
