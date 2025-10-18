@@ -15,6 +15,12 @@ theme: journal
 
 ## Introduction
 
+Environmental inequities can be seen all over the world. When low income, often non-white residents disproportionately take on environmental hazards, they often experience adverse health effects and environmental degradation in their neighborhoods. This analysis aims to explore how the historic practice of redlining has influenced the environmental harms experienced by residents in Los Angeles.
+
+In 1933, the Home Owner's Loan Corporation created maps of metropolitan areas in the United States and categorized neighborhoods by grade. The grades were: A - best, B - still desirable, C - declining, and D - hazardous. This process has become know as "redlining." We aim to see how redlining continues to impact the residents of Los Angeles based on their demographic makeup and the environmental injustices they face. We will do this using patial data of historically redlined neighborhoods and demographic and environmental hazard data from EJ Screen.
+
+We will also be examining the concept that biological surveys conducted by community members are more prevalent in grade A neighborhoods, than in grade D neighborhoods. To do this we will use data from the Global Biodiveristy Information Facility gathered from eBird, a community science platform for bird observations.
+
 ## Data sources
 
 **EJ SCREEN**\
@@ -41,11 +47,9 @@ library(tigris) # for shape file of counties
 library(janitor) # to clean column names
 ```
 
-## Bring in data
+# Los Angeles County block groups
 
-### Los Angeles County block group levels
-
-EJ SCREEEN uses block groups to asses indicators of environmental justice. We will first need to pull the geometries of the block from EJ SCREEN data. Each block has a unique OBJECTID, which will provide the level of resolution required for this analysis.
+EJ SCREEEN uses block groups to assess indicators of environmental justice. We will first need to pull the geometries of the block from EJ SCREEN data. Each block has a unique OBJECTID, which will provide the level of resolution required for this analysis.
 
 ```{r}
 # read in geodatabase of EJScreen data at the Census Block Group level
@@ -70,11 +74,13 @@ la_county_blocks_map
 
 # Redlining in Los Angeles
 
+Anytime we are working with spatial data, we need to make sure that the coordinate reference systems are the same for accuracy purposes. In order to do this we must check the CRS of each shape file we are working with and then make them match.
+
 ```{r}
 # redlining data from HOLC 
 redlining <- st_read(here("data", "mapping-inequality","mapping-inequality-los-angeles.json"))
 
-# check CRS
+# check CRS of HOLC redlining data
 st_crs(redlining)
 
 # check crs of ej data and redlining data
@@ -85,16 +91,34 @@ redlining_reproj <- st_transform(redlining, crs = st_crs(ej_screen_la))
 
 # check to see that it matches 
 st_crs(redlining_reproj) == st_crs(ej_screen_la) 
+```
 
+Now that the CRS's match, we can begin building a map to show the distribution of the historically redlined neighborhoods in LA. Because LA county is much bigger than the scope of this redlining data, we will create a bounding box on our map that restricts it to the extent of the HOLC redlining data.
+
+```{r}
 # get the bounding box of HOLC data
 holc_extent <- st_bbox(redlining_reproj)
+```
 
-# 
+Now that we have our bounding box, we can begin creating our map using the hex codes of colors provided in the HOLC redlining dataset for each corresponding grade.
+
+```{r}
+# use colors from HOLC dataset
+# Define the custom colors for each grade
+grade_colors <- c(
+  "A" = "#76a865",     
+  "B" = "#7cb5bd",       
+  "C" = "#ffff00",
+  "D" = "#d9838d",
+  "None" = "#d3d3d3"     
+)
+
+# create a map of all the HOLC neighborhoods and their grades in LA
 tm_shape(ej_screen_la, bbox = holc_extent) +
   tm_polygons() +
   tm_borders(col = "black")+
   tm_shape(redlining_reproj)+
-  tm_fill(fill = "grade")+
+  tm_fill(col = "grade", palette = grade_colors, title = "HOLC Grade")+
   tm_title(text = "Historically Redlined Neighborhoods in LA")+
   tm_scalebar(position = c("right", "bottom"),
               width = 7)+
@@ -110,7 +134,10 @@ Because we want to have all of the census blocks for our HOLC data, we will join
 
 ```{r}
 # join HOLC and EJ Screen data
-holc_ej <- st_join(ej_screen_la, redlining_reproj, join = st_intersects, left = FALSE) # 6388 rows
+holc_ej <- st_join(redlining_reproj, ej_screen_la, join = st_intersects, left = FALSE) |>
+clean_names()
+
+# 6388 observations and 238 variables
 ```
 
 Now that we have joined the datasets, we can gather the information we need to get the percentage of each grade across the census block in LA.
@@ -125,7 +152,7 @@ holc_by_block <- holc_ej |>
   mutate(percentage = num_blocks / sum(num_blocks) * 100)
 ```
 
-# Percentage of blocks in each grade
+## Percentage of blocks in each grade
 
 To better illustrate what this looks like, we will construct a table that will show the number of blocks and percentage of blocks in each grade.
 
@@ -141,11 +168,15 @@ datatable(holc_by_block,
           colnames = c("HOLC Grade", "Number of Block Groups", "Percent of Total"))
 ```
 
+You can see that block grade C represents much of the nieghborhoods in the city of Los Angeles. Block groups with that belong to grade C are thought to be in decline.
+
 # Redlining and EJ
 
-In order to illustrate the relationship between different EJ indicators and how they are impacted by redlining, we will create some meaningful visuals.
+In order to illustrate the relationship between different EJ indicators and how they are impacted by redlining, we will create some meaningful visuals. The first will be a bar graph illustrating the average percentage of low income residents in each block grade across LA.
 
-## Bar graph of percent low income by grade
+## Percent low income by grade
+
+We want to get the average percent of low income residents in each HOLC grade. This is because it will make for a much nicer and easier to digest visual. In order to do this, we must drop the geometry of this datacset and get the mean of the value.
 
 ```{r}
 # get percent low income by grade
@@ -153,18 +184,12 @@ percent_lowinc_by_grade <- holc_ej |>
   st_drop_geometry() |>
   mutate(grade = if_else(is.na(grade), "None", grade)) |>
   group_by(grade) |>
-  summarise(avg_lowincpct = mean(LOWINCPCT, na.rm = TRUE) * 100)
+  summarise(avg_lowincpct = mean(lowincpct, na.rm = TRUE) * 100)
+```
 
-# use colors from HOLC dataset
-# Define the custom colors for each grade
-grade_colors <- c(
-  "A" = "#76a865",     
-  "B" = "#7cb5bd",       
-  "C" = "#ffff00",    
-  "D" = "#d9838d",      
-  "None" = "#d3d3d3"     
-)
+Now that we have a data set compatible for making bar graphs, we can make our visualization in ggplot.
 
+```{r}
 # plot bar graph of percent low income by grade
 holc_percent_low_inc <- ggplot(percent_lowinc_by_grade, aes(x = grade, y = avg_lowincpct, fill = grade)) +
   geom_col() +
@@ -182,16 +207,131 @@ holc_percent_low_inc
 
 As we can see, grade A, which the 'best' neighborhoods belong to, has the lowest average percent low income at \~ 15%, while grade D, which the 'hazardous' neighborhoods belong to has the highest average percent low income.
 
+## Percentile for PM 2.5 and low life expectancy by grade
+
+Next, we will look at the relationship between the percentile of PM 2.5 and low life expectancy in different block groups and their corresponding HOLC grade. This graph will look almost identical to the previous in that it will also be a bar graph and will be split by grade.
+
+```{r}
+# get percentile for PM 2.5 and low life expectancy by grade
+pm25_lifeexp_by_grade <- holc_ej |>
+  st_drop_geometry() |>
+  mutate(grade = if_else(is.na(grade), "None", grade))
+```
+
+Now that we have a data frame with the percentile of PM 2.5 exposure and low life expectancy for each grade, we can easily visualize the data with box plots. Box and whisker plots allow use to see how the data is distributed across all of the blocks. The line in each box tells us the median of the data and the box represents where 50% of the data lies.
+
+```{r}
+# box plot for percentile low life expectancy by grade
+life_exp_box <- ggplot(pm25_lifeexp_by_grade, aes(x = grade, y = p_lifeexppct, fill = grade)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +  # hide outliers 
+  scale_fill_manual(values = grade_colors) +
+  labs(
+    title = "Life Expectancy Percentile by HOLC Grade",
+    x = "HOLC Grade",
+    y = "Life Expectancy"
+  ) +
+  theme_minimal()
+
+# box plot for percentile pm 2.5 exposure by grade
+pm25_box <- ggplot(pm25_lifeexp_by_grade, aes(x = grade, y = p_pm25, fill = grade)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) + # hide outliers
+  scale_fill_manual(values = grade_colors) +
+  labs(
+    title = "PM2.5 Exposure Percentile by HOLC Grade",
+    x = "HOLC Grade",
+    y = "PM2.5"
+  ) +
+  theme_minimal()
+
+# load patchwork to show both plots
+library(patchwork)
+
+# call the plots
+print(life_exp_box / pm25_box)
+```
+
+## Discussion
+
+As we can see in these two box plots, the spread of data is much narrower for percentile of PM 2.5 exposure than for percentile low life expectancy. This illustrates that low life expectancy may not be that closely related to HOLC grade, however, there still may be some correlation. Residents from block groups in grade D seem to experience lower life expectancies than any other grade. Residents from block groups in grade A tend to not have a positive relationship with low life expectancy they way the other grades do.
+
+PM 2.5 is marginally different between the grades, but still we see the same trend repeating, wherein grade A experiences less PM 2.5 exposure compared with other grades. Block groups belonging to no grade seem to take the average of every value we have visualized. This shows us that redlining, which happened decades ago, is still impacting the livelihoods of residents in Los Angeles currently. Defining a neighborhood as 'hazardous' or 'declining' is almost a self-fulfilling prophecy. Because of this categorization of neighborhoods back in the 1930s, these block groups do not see the investments in infrastructure and policies that could improve their environment.
+
+Ultimately, this narrative that began so long ago is still affecting residents today. This harmful narrative perpetuates as low income residents continue to be overburdened with environmental harms.
+
 # Birds in Los Angeles County
+
+In order to observe the relationship between bird observations and HOLC grades. We are ultimately getting at two questions here: 1) Is community science prevalent in these areas? and 2) Do neighborhoods with different HOLC grades experience sampling bias?
+
+## Joining HOLC and Bird data
+
+First we will load our community bird observations from the Global Biodiversity Information Facility. The bird observations we have come from 2021 - 2023. For the purposed of this analysis, we will not be looking at their temporal differences and will instead treat them all the same across year. Then we will make sure that the CRS's match for our HOLC redlining data and our bird data. After that, we will join this data set with our HOLC data set in order to get the geometries for both.
 
 ```{r}
 # read in bird data
 birds <- st_read(here("data", "gbif-birds-LA",
                       "gbif-birds-LA.shp"))
+
+# check the CRS of bird data
+st_crs(birds)
+
+# check if it matches with non-reprojected HOLC data
+birds_reproj <- st_transform(birds, crs = st_crs(redlining_reproj))
+# they both match, no need to reproject
 ```
 
-## Historical Redlining Map
+Now that we have transformed our geometries to have the same projection and CRS, we can join our data sets.
 
 ```{r}
+# join HOLC and birds data sets
+holc_bird <- st_join(birds_reproj, redlining_reproj, join = st_intersects, left = FALSE) |>
+clean_names()
 
+# change NAs to "None" for 'grade' column
+holc_bird <- holc_bird |>
+  mutate(grade = replace_na(grade, "None"))
 ```
+
+Now that our data sets look the way we want them to and none of the observations for 'grade' contain NAs, we can drop our geometries and do our statistical analysis.
+
+First, we need to get the percentage of bird observations represented in each HOLC grade. This will be similar to the table we made to see the percentage of block groups belonging to each HOLC grade.
+
+```{r}
+# group by grade and get percentage of bird observations in each
+bird_by_holc <- holc_bird |>
+  st_drop_geometry() |>
+  group_by(grade) |>
+  summarise(num_obs = n()) |>
+  mutate(percentage = num_obs / sum(num_obs) * 100)
+```
+
+## Bird observations by HOLC grade
+
+Now, we will be making a bar graph that shows the percentage of total bird observations from each HOLC grade in Los Angeles. This will be very similar to our average low income percentage bar graph, but this will not be the average.
+
+```{r}
+# plot bar graph of percent total bird observations by HOLC grade
+holc_percent_bird <- ggplot(bird_by_holc, aes(x = grade, y = percentage, fill = grade)) +
+  geom_col() +
+  labs(
+    title = "Bird Observations by HOLC Grade in LA (2021-2023)",
+    x = "HOLC Grade",
+    y = "Percent of Total Bird Observations"
+  ) +
+  scale_fill_manual(values = grade_colors) +   # use custom colors here
+  theme_minimal()
+
+# call the plot
+holc_percent_bird
+```
+
+Looking at our bar graph, there is not an apparent relationship between HOLC grade and bird observations. We see that "declining" neighborhoods actually have a higher proportion of bird observations than those that are "best" or "still desirable." Still the "hazardous neighborhoods have almost the same proportion of bird observations as the "best" neighborhoods.
+
+## Discussion
+
+The results that we have found in our analysis differ greatly from the work of Ellis-Soto et al. 2023. The authors of this paper concluded that grade A neighborhoods had twice the amount of bird observations as grade D neighborhoods. We clearly do not show that in our analysis. The reason for this difference is largely because of a difference in methodology. If you look at bird observations in a vacuum, as we have, and you don't consider the density of each of these areas, you get different results. Additionally, our analysis has only looked at Los Angeles, and the Ellis-Soto et al. paper looked at 195 areas across 35 states. They also accounted for differences in vegetation, open space, population density, and climate.
+
+A difference in methodology will often produce a difference in results. Ultimately, our analysis does not negate the results of the Ellis-Soto et al. paper because we are measuring different values. Sampling density is much different than number of birds sampled.
+
+**References**
+
+Ellis-Soto, D., Chapman, M. & Locke, D.H. Historical redlining is associated with increasing geographical disparities in bird biodiversity sampling in the United States. *Nat Hum Behav* **7**, 1869–1877 (2023). <https://doi.org/10.1038/s41562-023-01688-5>
