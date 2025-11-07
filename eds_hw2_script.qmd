@@ -59,7 +59,7 @@ EJ SCREEEN uses block groups to assess indicators of environmental justice. We w
 #| message: false
 #| warning: false
 # read in geodatabase of EJScreen data at the Census Block Group level
-ejscreen <- st_read(here("data", "ejscreen","EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb"))
+ejscreen <- st_read(here("data", "ejscreen","EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb"), quiet = TRUE)
 
 # filter for LA County
 ej_screen_la <- ejscreen |>
@@ -86,7 +86,7 @@ Anytime we are working with spatial data, we need to make sure that the coordina
 #| message: false
 #| warning: false
 # redlining data from HOLC 
-redlining <- st_read(here("data", "mapping-inequality","mapping-inequality-los-angeles.json"))
+redlining <- st_read(here("data", "mapping-inequality","mapping-inequality-los-angeles.json"), quiet = TRUE)
 
 # check CRS of HOLC redlining data
 st_crs(redlining)
@@ -277,7 +277,7 @@ First we will load our community bird observations from the Global Biodiversity 
 ```{r}
 # read in bird data
 birds <- st_read(here("data", "gbif-birds-LA",
-                      "gbif-birds-LA.shp"))
+                      "gbif-birds-LA.shp"), quiet = TRUE)
 
 # check the CRS of bird data
 st_crs(birds)
