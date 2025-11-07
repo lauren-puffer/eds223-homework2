@@ -8,7 +8,18 @@ This repository also examinines the concept that biological surveys conducted by
 
 ## Contained in this repository
 
-EDS223-HW2 │ README.md │ eds_hw2_script.qmd │ Rmd/Proj files └───.gitignore └───data └───ejscreen └───gbif-birds-LA └───mapping-inequality
+```{r}
+EDS223-HW2
+│   README.md
+│   eds_hw2_script.qmd
+│   Rmd/Proj files    
+│
+└───.gitignore
+     └───data
+         └───ejscreen
+         └───gbif-birds-LA
+         └───mapping-inequality
+```
 
 ## Data sources
 
@@ -30,3 +41,7 @@ eBird: <https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e>
 ## Authors
 
 Owner of repository: Lauren Puffer
+
+## Acknowledgements
+
+I would like to acknowledge my professor, Annie Adams, and her Teaching Assistant, Alessandra Vidal Meza for teaching me how to do these data manipulations. I would also like to acknowledge Diego Ellis-Soto for providing the concept for this analysis.
