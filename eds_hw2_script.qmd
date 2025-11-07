@@ -48,6 +48,7 @@ library(tmap)
 library(here)
 library(tigris) # for shape file of counties
 library(janitor) # to clean column names
+library(terra)
 ```
 
 # Los Angeles County block groups
@@ -90,14 +91,14 @@ redlining <- st_read(here("data", "mapping-inequality","mapping-inequality-los-a
 # check CRS of HOLC redlining data
 st_crs(redlining)
 
-# check crs of ej data and redlining data
-st_crs(ej_screen_la) == st_crs(redlining) #false
-
-# reproject to match LA block groups from EJ Screen data
-redlining_reproj <- st_transform(redlining, crs = st_crs(ej_screen_la))
-
-# check to see that it matches 
-st_crs(redlining_reproj) == st_crs(ej_screen_la) 
+# check and transform CRS
+if(crs(redlining) == crs(ej_screen_la)){
+  print("Coordinate reference systems match.")
+}else{
+  warning("Updating coordinate reference systems to match.")
+  #transform data to match
+  redlining_reproj <- st_transform(redlining, st_crs(ej_screen_la))
+}
 ```
 
 Now that the CRS's match, we can begin building a map to show the distribution of the historically redlined neighborhoods in LA. Because LA county is much bigger than the scope of this redlining data, we will create a bounding box on our map that restricts it to the extent of the HOLC redlining data.
@@ -281,9 +282,14 @@ birds <- st_read(here("data", "gbif-birds-LA",
 # check the CRS of bird data
 st_crs(birds)
 
-# check if it matches with non-reprojected HOLC data
-birds_reproj <- st_transform(birds, crs = st_crs(redlining_reproj))
-# they both match, no need to reproject
+# check and transform CRS
+if(crs(birds) == crs(redlining_reproj)){
+  print("Coordinate reference systems match.")
+}else{
+  warning("Updating coordinate reference systems to match.")
+  #transform data to match
+  birds_reproj <- st_transform(birds, st_crs(redlining_reproj))
+}
 ```
 
 Now that we have transformed our geometries to have the same projection and CRS, we can join our data sets.
