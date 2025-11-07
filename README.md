@@ -8,15 +8,7 @@ This repository also examinines the concept that biological surveys conducted by
 
 ## Contained in this repository
 
-EDS223-HW2
-│ README.md
-│ eds_hw2_script.qmd
-│ Rmd/Proj files
-└───.gitignore
-└───data
-└───ejscreen
-└───gbif-birds-LA
-└───mapping-inequality
+EDS223-HW2 │ README.md │ eds_hw2_script.qmd │ Rmd/Proj files └───.gitignore └───data └───ejscreen └───gbif-birds-LA └───mapping-inequality
 
 ## Data sources
 
