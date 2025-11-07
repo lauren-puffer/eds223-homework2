@@ -40,6 +40,8 @@ eBird: <https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e>
 ## Load packages
 
 ```{r}
+#| message: false
+#| warning: false
 library(tidyverse)
 library(sf)
 library(tmap)
@@ -53,6 +55,8 @@ library(janitor) # to clean column names
 EJ SCREEEN uses block groups to assess indicators of environmental justice. We will first need to pull the geometries of the block from EJ SCREEN data. Each block has a unique OBJECTID, which will provide the level of resolution required for this analysis.
 
 ```{r}
+#| message: false
+#| warning: false
 # read in geodatabase of EJScreen data at the Census Block Group level
 ejscreen <- st_read(here("data", "ejscreen","EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb"))
 
@@ -78,6 +82,8 @@ la_county_blocks_map
 Anytime we are working with spatial data, we need to make sure that the coordinate reference systems are the same for accuracy purposes. In order to do this we must check the CRS of each shape file we are working with and then make them match.
 
 ```{r}
+#| message: false
+#| warning: false
 # redlining data from HOLC 
 redlining <- st_read(here("data", "mapping-inequality","mapping-inequality-los-angeles.json"))
 
